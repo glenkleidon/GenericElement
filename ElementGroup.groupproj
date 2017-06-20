@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{07332608-78FA-415C-A1CE-4A24CBF48E96}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="ElementConsole.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Tests\ElementConsoleTests.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ElementConsole">
+        <MSBuild Projects="ElementConsole.dproj"/>
+    </Target>
+    <Target Name="ElementConsole:Clean">
+        <MSBuild Projects="ElementConsole.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ElementConsole:Make">
+        <MSBuild Projects="ElementConsole.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ElementConsoleTests">
+        <MSBuild Projects="Tests\ElementConsoleTests.dproj"/>
+    </Target>
+    <Target Name="ElementConsoleTests:Clean">
+        <MSBuild Projects="Tests\ElementConsoleTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ElementConsoleTests:Make">
+        <MSBuild Projects="Tests\ElementConsoleTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ElementConsole;ElementConsoleTests"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ElementConsole:Clean;ElementConsoleTests:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ElementConsole:Make;ElementConsoleTests:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
