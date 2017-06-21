@@ -14,6 +14,16 @@ type
      Elements : TArray<TElement>;
      Methods : TArray<TFunc<TElement,TElement>>;
      Function AddElement(AElement: TElement): TElement;
+     Function AsByte:Byte;  // no implicit casting
+     Function AsChar:Char;
+     Function AsSingle: Single;
+     Function AsDouble: Double;
+     Function AsCurrency: Currency;
+     Function AsExtended: Extended;
+     Function AsInteger: Integer;
+     Function AsInt64: Int64;
+     Class Operator Implicit(AChar : char): TElement;
+     Class Operator Implicit(AByte : byte): TElement;
      Class Operator Implicit(AString: string): TElement;
      Class Operator Implicit(AInteger: integer): TElement;
      Class Operator Implicit(AExtended: Extended): TElement;
@@ -49,6 +59,54 @@ begin
    self.Elements[l] := AElement;
    Self.ElementType := 'TElement';
    Result := Self.Elements[l];
+end;
+
+function TElement.AsByte: Byte;
+begin
+  Result := 0;
+  Value.TryAsType<byte>(Result);
+end;
+
+function TElement.AsChar: Char;
+begin
+  result := #0;
+  Value.TryAsType<char>(Result);
+end;
+
+function TElement.AsCurrency: Currency;
+begin
+  result := 0;
+  Value.TryAsType<Currency>(Result);
+end;
+
+function TElement.AsDouble: Double;
+begin
+  result := 0;
+  Value.TryAsType<Double>(Result);
+end;
+
+function TElement.AsExtended: Extended;
+begin
+  result := 0;
+  Value.TryAsType<Extended>(Result);
+end;
+
+function TElement.AsInt64: Int64;
+begin
+  result := 0;
+  Value.TryAsType<Int64>(Result);
+end;
+
+function TElement.AsInteger: Integer;
+begin
+  result := 0;
+  Value.TryAsType<Integer>(Result);
+end;
+
+function TElement.AsSingle: Single;
+begin
+  result := 0;
+  Value.TryAsType<Single>(Result);
 end;
 
 constructor TElement.Create(AName: string; const AValue: TValue);
@@ -107,6 +165,20 @@ begin
   if Length(AElement.Elements)=0 then exit;
   for lELement in AElement.Elements do
    result := Result +  #13#10 + lElement;
+end;
+
+class operator TElement.Implicit(AChar: char): TElement;
+begin
+  result.Name := '';
+  result.Value := Achar;
+  Result.SetType;
+end;
+
+class operator TElement.Implicit(AByte: byte): TElement;
+begin
+  Result.Name := '';
+  Result.Value := AByte;
+  Result.SetType;
 end;
 
 class operator TElement.Implicit(AExtended: Extended): TElement;
