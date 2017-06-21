@@ -8,7 +8,7 @@ uses
   {$ELSE}
   DUnitX.TestFramework,DUnitX.DUnitCompatibility,
   {$ENDIF}
-  GenericElements, System.SysUtils, System.rtti
+  GenericElements, System.SysUtils, System.rtti, System.TypInfo
   ;
 
   Type
@@ -311,12 +311,43 @@ end;
 procedure TestGenericElement.Test_Generic_interface_Implicit_To_String_passes;
 var lElement: TElement;
     lExpected, lResult : string;
+    yn:Boolean;
+    b: Byte;
+    c: char;
+    i:integer;
+    ii:int64;
+    e:Extended;
+    d:Double;
+    s:Single;
+    cu:Currency;
 begin
    lExpected := 'This is a string';
    lElement := lExpected;
    lResult := lElement;
-   check(lResult = lExpected, 'Expected : '+lExpected + #13#10 +
-                               'Actual   : '+Lresult);
+   checkValue(lExpected,lResult);
+    b:=255;
+    c:= #32;
+    i:= maxInt;
+    ii:= maxLongInt;
+    e:= -128312973.232;
+    d:= (22/7);
+    s:= (22/7);
+    cu := 0.15*3.80*100;
+
+    yn:=false;
+    lElement := yn; lExpected:='False';lresult := lElement; checkValue(lExpected,lResult);
+    yn:=true;
+    lElement := yn; lExpected:='True';lresult := lElement; checkValue(lExpected,lResult);
+
+
+    lElement := b; lExpected := '255';lresult := lElement; checkValue(lExpected,lResult);
+    lElement := c; lExpected := ' ';lresult := lElement; checkValue(lExpected,lResult);
+    lElement := i; lExpected := MaxInt.ToString;lresult := lElement; checkValue(lExpected,lResult);
+    lElement := ii; lExpected := MaxLongInt.ToString;lresult := lElement; checkValue(lExpected,lResult);
+    lElement := e; lExpected := '-128312973.232';lresult := lElement; checkValue(lExpected,lResult);
+    lElement := d; lExpected := '3.14285714285714';lresult := lElement; checkValue(lExpected,lResult);
+    lElement := s; lExpected := '3.14285707473755';lresult := lElement; checkValue(lExpected,lResult);
+    lElement := cu; lExpected := '57';lresult := lElement; checkValue(lExpected,lResult);
 end;
 
 initialization
