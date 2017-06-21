@@ -4,3 +4,4 @@ Win32/
 *.stat
 Tests/*.dcu
 *.identcache
+*.tvsconfig

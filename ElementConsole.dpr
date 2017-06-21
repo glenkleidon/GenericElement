@@ -13,12 +13,14 @@ uses
       subElementInteger: TElement;
       IntValue: Integer;
 begin
+  // Report Memory Leaks!! SHOULD NEVER BE ANY ////
+  system.ReportMemoryLeaksOnShutdown := true;
   try
     { TODO -oUser -cConsole Main : Insert code here }
      strElement := 'A String';
-     Writeln(string(strElement));
+     Writeln('Type of "'+strElement.ElementType+'" ' + strElement);
      SubElement0 := strElement.AddElement('An Element String');
-     Writeln('Type of "'+strElement.ElementType+'" +' +
+     Writeln('Type of "'+strElement.ElementType+'" ' +
                'Value "'+strElement.Value.ToString+'" ' +
                'Element 0 "'+subElement0+'"');
      subElement0.AddElement(1);
