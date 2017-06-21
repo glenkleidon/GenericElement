@@ -6,6 +6,9 @@
         <Projects Include="ElementConsole.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Tests\ElementGUITests.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="Tests\ElementConsoleTests.dproj">
             <Dependencies/>
         </Projects>
@@ -26,6 +29,15 @@
     <Target Name="ElementConsole:Make">
         <MSBuild Projects="ElementConsole.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ElementGUITests">
+        <MSBuild Projects="Tests\ElementGUITests.dproj"/>
+    </Target>
+    <Target Name="ElementGUITests:Clean">
+        <MSBuild Projects="Tests\ElementGUITests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ElementGUITests:Make">
+        <MSBuild Projects="Tests\ElementGUITests.dproj" Targets="Make"/>
+    </Target>
     <Target Name="ElementConsoleTests">
         <MSBuild Projects="Tests\ElementConsoleTests.dproj"/>
     </Target>
@@ -36,13 +48,13 @@
         <MSBuild Projects="Tests\ElementConsoleTests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="ElementConsole;ElementConsoleTests"/>
+        <CallTarget Targets="ElementConsole;ElementGUITests;ElementConsoleTests"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="ElementConsole:Clean;ElementConsoleTests:Clean"/>
+        <CallTarget Targets="ElementConsole:Clean;ElementGUITests:Clean;ElementConsoleTests:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="ElementConsole:Make;ElementConsoleTests:Make"/>
+        <CallTarget Targets="ElementConsole:Make;ElementGUITests:Make;ElementConsoleTests:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

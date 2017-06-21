@@ -10,6 +10,8 @@ uses
 
   var strElement: TElement;
       subElement0 : TElement;
+      subElementInteger: TElement;
+      IntValue: Integer;
 begin
   try
     { TODO -oUser -cConsole Main : Insert code here }
@@ -19,7 +21,14 @@ begin
      Writeln('Type of "'+strElement.ElementType+'" +' +
                'Value "'+strElement.Value.ToString+'" ' +
                'Element 0 "'+subElement0+'"');
-     Writeln(' OR : '+strElement);
+     subElement0.AddElement(1);
+     subElement0.AddElement(2.2);
+     subElement0.AddElement(int64(3));
+     subElementInteger := strElement.AddElement(1);
+     Writeln('Added Permanent SubElement ' + subElementInteger);
+     Writeln(' OR : '#13#10'Start ELEMENT:'#13#10
+                 +strElement+#13#10':End ELEMENT');
+     Writeln('SubElement0 is now :'+SubElement0);
      Readln;
   except
     on E: Exception do
