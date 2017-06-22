@@ -14,77 +14,93 @@ uses
   Type
   TestGenericElement = class(TTestCase)
   private
-    procedure CheckValue(AExpected, AActual:  TValue);
+    Procedure CheckValue(AExpected, AActual:  TValue);
   public
   published
-    procedure Test_Generic_interface_Implicit_To_String_passes;
-    procedure Test_Generic_interface_Implicit_To_boolean_passes;
-    procedure Test_Generic_interface_Implicit_To_byte_passes;
-    procedure Test_Generic_interface_Implicit_To_char_passes;
-    procedure Test_Generic_interface_Implicit_To_Integer_passes;
-    procedure Test_Generic_interface_Implicit_To_Int64_passes;
-    procedure Test_Generic_interface_Implicit_To_Extended_passes;
-    procedure Test_Generic_interface_Implicit_To_Single_passes;
-    procedure Test_Generic_interface_Implicit_To_Double_passes;
-    procedure Test_Generic_interface_Implicit_To_Currency_passes;
+    procedure Test_Generic_Element_Implicit_To_String_passes;
+    procedure Test_Generic_Element_Implicit_To_boolean_passes;
+    procedure Test_Generic_Element_Implicit_To_byte_passes;
+    procedure Test_Generic_Element_Implicit_To_char_passes;
+    procedure Test_Generic_Element_Implicit_To_Integer_passes;
+    procedure Test_Generic_Element_Implicit_To_Int64_passes;
+    procedure Test_Generic_Element_Implicit_To_Extended_passes;
+    procedure Test_Generic_Element_Implicit_To_Single_passes;
+    procedure Test_Generic_Element_Implicit_To_Double_passes;
+    procedure Test_Generic_Element_Implicit_To_Currency_passes;
+    procedure Test_Generic_Element_Parent_Is_Expected_Parent;
+  end;
+  Type
+
+  TestGenericElementJson = class(TTestCase)
+  private
+    Procedure CheckValue(AExpected, AActual:  TValue);
+  public
+  published
+    procedure Test_Generic_Element_AS_JSON_Passes;
   end;
 
 
 implementation
 
-{ TestGenericElement }
-procedure TestGenericElement.CheckValue(AExpected, AActual:  TValue);
-var lResult: boolean;
+function CheckTestValue(ATestCase: TTestCase; AExpected, AActual:  TValue): boolean;
+var
     lValue : TValue;
 begin
-  lResult := AActual.TryCast(AExpected.TypeInfo, lValue);
-  if lResult then
+  Result := AActual.TryCast(AExpected.TypeInfo, lValue);
+  if Result then
   case AExpected.Kind of
     tkUnknown: ;
     tkSet: ;
     tkClass: ;
     tkMethod: ;
 
-    tkWChar: 
-       lResult := AExpected.AsType<wideChar>=lValue.AsType<wideChar>;
-    tkChar : 
-       lResult := AExpected.AsType<Char>=lValue.AsType<Char>;
+    tkWChar:
+       Result := AExpected.AsType<wideChar>=lValue.AsType<wideChar>;
+    tkChar :
+       Result := AExpected.AsType<Char>=lValue.AsType<Char>;
     tkUString:
-       lResult := AExpected.AsType<UnicodeString>=lValue.AsType<UnicodeString>;
+       Result := AExpected.AsType<UnicodeString>=lValue.AsType<UnicodeString>;
     tkLString,
     tkString,
-    tkWString:  lResult :=AExpected.AsString=AActual.AsString;
-    
-    tkVariant:  lResult :=AExpected.AsVariant=AExpected.AsVariant;
+    tkWString:  Result :=AExpected.AsString=AActual.AsString;
 
-    tkEnumeration : lResult := AExpected.ToString = AExpected.ToString;
-    tkInteger : lResult := AExpected.AsInteger = AActual.AsInteger;
+    tkVariant:  Result :=AExpected.AsVariant=AExpected.AsVariant;
+
+    tkEnumeration : Result := AExpected.ToString = AExpected.ToString;
+    tkInteger : Result := AExpected.AsInteger = AActual.AsInteger;
 
     tkFloat,
-    tkInt64 : lResult := AExpected.AsExtended = AActual.AsExtended;
+    tkInt64 : Result := AExpected.AsExtended = AActual.AsExtended;
 
     tkArray: ;
     tkRecord: ;
     tkInterface: ;
     tkDynArray: ;
     tkClassRef: ;
-    tkPointer: ;
+    tkPointer: ;//result := AExpected =AActual;
     tkProcedure: ;
   end;
+
   {$IFNDEF DUNITX}
-    check(lResult, 'Expected:' + AExpected.toString + #13#10 +
-                           'Actual  :' + AActual.ToString); 
+    ATestCase.check(Result, 'Expected:' + AExpected.toString + #13#10 +
+                           'Actual  :' + AActual.ToString);
   {$ELSE}
-    Assert.IsTrue(lResult,'Expected:' + AExpected.toString + #13#10 +
+    Assert.IsTrue(Result,'Expected:' + AExpected.toString + #13#10 +
                            'Actual  :' + AActual.ToString);
   {$ENDIF}
-  
+
 end;
 
+{ TestGenericElement }
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_boolean_passes;
+procedure TestGenericElement.CheckValue(AExpected, AActual: TValue);
+begin
+   CheckTestValue(self, AExpected, AActual);
+end;
+
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_boolean_passes;
 var lElement: TElement;
-    lExpected  
+    lExpected
     , lResult : Boolean;
 begin
    lExpected := true;
@@ -99,7 +115,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_byte_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_byte_passes;
 var lElement: TElement;
     lExpected  
     , lResult : Byte;
@@ -121,7 +137,7 @@ begin
                                
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_char_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_char_passes;
 var lElement: TElement;
     lExpected  
     , lResult : Char;
@@ -138,9 +154,9 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_Currency_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_Currency_passes;
 var lElement: TElement;
-    lExpected  
+    lExpected
     , lResult : Currency;
 begin
    lExpected := 0.01;
@@ -156,7 +172,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_Double_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_Double_passes;
 var lElement: TElement;
     lExpected  
     , lResult : double;
@@ -183,7 +199,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_Extended_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_Extended_passes;
 var lElement: TElement;
     lExpected  
     , lResult : Extended;
@@ -216,7 +232,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_Int64_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_Int64_passes;
 var lElement: TElement;
     lExpected  
     , lResult : Int64;
@@ -248,7 +264,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_Integer_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_Integer_passes;
 var lElement: TElement;
     lExpected  
     , lResult : Integer;
@@ -281,7 +297,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_Single_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_Single_passes;
 var lElement: TElement;
     lExpected  
     , lResult : single;
@@ -308,7 +324,7 @@ begin
 
 end;
 
-procedure TestGenericElement.Test_Generic_interface_Implicit_To_String_passes;
+procedure TestGenericElement.Test_Generic_Element_Implicit_To_String_passes;
 var lElement: TElement;
     lExpected, lResult : string;
     yn:Boolean;
@@ -335,9 +351,15 @@ begin
     cu := 0.15*3.80*100;
 
     yn:=false;
-    lElement := yn; lExpected:='False';lresult := lElement; checkValue(lExpected,lResult);
+    lExpected:='False';//yn.ToString(True);
+    lElement := yn;
+    lresult := lElement;
+    checkValue(lExpected,lResult);
+
     yn:=true;
-    lElement := yn; lExpected:='True';lresult := lElement; checkValue(lExpected,lResult);
+    lElement := yn; lExpected:='True';//yn.ToString(True);
+    lresult := lElement;
+    checkValue(lExpected,lResult);
 
 
     lElement := b; lExpected := '255';lresult := lElement; checkValue(lExpected,lResult);
@@ -350,12 +372,53 @@ begin
     lElement := cu; lExpected := '57';lresult := lElement; checkValue(lExpected,lResult);
 end;
 
+procedure TestGenericElement.Test_Generic_Element_Parent_Is_Expected_Parent;
+var lElement: TElement;
+    lExpected
+    , lResult : TElement;
+begin
+   lExpected := 0.01;
+   lExpected.Name := 'Parent1';
+
+   lResult.value := lExpected.Parent;
+
+   checkValue(@lResult,@lExpected);
+
+
+end;
+
+{ TestGenericElementJson }
+
+procedure TestGenericElementJson.CheckValue(AExpected, AActual: TValue);
+begin
+  checkTestValue(Self, AExpected, AActual);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_AS_JSON_Passes;
+var lElement: TElement;
+    lExpected, lResult : string;
+begin
+   lElement := TElement.create('Element1', TValue.Empty);
+   lElement.AddElement(1);
+
+   lElement
+   .AddSubElement(TElement.Create('SubElement1',TValue.Empty))
+     .AddElement('String1')
+     .AddElement('String2');
+
+   lExpected := '{"Element1":{"SubElement1":["String1","String2"]}}';
+   lResult := TElement.ToJSON(lElement);
+   checkvalue(lExpected,lResult);
+end;
+
 initialization
   // Register any test cases with the test runner
   {$IFNDEF DUNITX}
     RegisterTest(TestGenericElement.Suite);
+    RegisterTest(TestGenericElementJson.Suite);
   {$ELSE}
    TDUnitX.RegisterTestFixture(TestGenericElement);
+   TDUnitX.RegisterTestFixture(TestGenericElementJson);
   {$ENDIF}
 
 
