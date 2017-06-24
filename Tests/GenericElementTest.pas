@@ -15,6 +15,7 @@ uses
   TestGenericElement = class(TTestCase)
   private
     Procedure CheckValue(AExpected, AActual:  TValue);
+    Procedure CheckReference(AExpected, AActual : Pointer);
   public
   published
     procedure Test_Generic_Element_Implicit_To_String_passes;
@@ -28,6 +29,7 @@ uses
     procedure Test_Generic_Element_Implicit_To_Double_passes;
     procedure Test_Generic_Element_Implicit_To_Currency_passes;
     procedure Test_Generic_Element_Parent_Is_Expected_Parent;
+    procedure Test_Generic_Element_Clone_Passes;
   end;
   Type
 
@@ -36,6 +38,8 @@ uses
     Procedure CheckValue(AExpected, AActual:  TValue);
   public
   published
+    procedure Test_Generic_Element_As_JSON_Returns_Value;
+    procedure Test_Generic_Element_As_JSON_Returns_Value_Array;
     procedure Test_Generic_Element_AS_JSON_Passes;
   end;
 
@@ -93,9 +97,43 @@ end;
 
 { TestGenericElement }
 
+procedure TestGenericElement.CheckReference(AExpected, AActual: Pointer);
+begin
+   {$IFNDEF DUNITX}
+    check(
+   {$ELSE}
+    Assert.IsTrue(
+   {$ENDIF}
+    @AExpected^=@AActual^, 'Pointers do not match');
+
+end;
+
 procedure TestGenericElement.CheckValue(AExpected, AActual: TValue);
 begin
    CheckTestValue(self, AExpected, AActual);
+end;
+
+procedure TestGenericElement.Test_Generic_Element_Clone_Passes;
+var lElement,lResult: TElement;
+    i:integer;
+begin
+   lElement := 1;
+   lElement.Name := 'ONE';
+   PTELement(lElement.Add).Value:=1.1;
+   PTELement(lElement.Add).Value:=1.2;
+   PTELement(lElement.Add).Value:=1.2;
+
+   lResult.Clone(lElement);
+
+   CheckValue(1,lResult.Value);
+   CheckValue(lElement.Name, lResult.Name);
+   CheckValue(3, lElement.Count);
+   CheckValue(3, lResult.Count);
+   CheckValue(lElement.ElementType, lResult.ElementType);
+   CheckValue(lElement.MethodCount, lResult.MethodCount);
+   for i := 0 to lElement.Count do
+     CheckValue(lElement.Elements[i].value,lResult.Elements[i].value);
+
 end;
 
 procedure TestGenericElement.Test_Generic_Element_Implicit_To_boolean_passes;
@@ -373,17 +411,16 @@ begin
 end;
 
 procedure TestGenericElement.Test_Generic_Element_Parent_Is_Expected_Parent;
-var lElement: TElement;
-    lExpected
-    , lResult : TElement;
+var lExpected : TElement;
+    lResult : TElement;
+
 begin
    lExpected := 0.01;
    lExpected.Name := 'Parent1';
 
-   lResult.value := lExpected.Parent;
-
-   checkValue(@lResult,@lExpected);
-
+   lResult := PTElement(lExpected.addSubElement('Object1')).Parent;
+   checkValue(lExpected.Value, lResult.Value);
+   checkValue(lExpected.Name,  lResult.Name);
 
 end;
 
@@ -395,20 +432,60 @@ begin
 end;
 
 procedure TestGenericElementJson.Test_Generic_Element_AS_JSON_Passes;
-var lElement: TElement;
+var lElement,lSubElement: TElement;
     lExpected, lResult : string;
 begin
    lElement := TElement.create('Element1', TValue.Empty);
    lElement.AddElement(1);
 
-   lElement
-   .AddSubElement(TElement.Create('SubElement1',TValue.Empty))
-     .AddElement('String1')
-     .AddElement('String2');
 
-   lExpected := '{"Element1":{"SubElement1":["String1","String2"]}}';
+   lSubElement := TElement.Create('SubElement1',TValue.Empty);
+   lSubElement.AddElement('String1');
+   lSubElement.AddElement('String2');
+   lElement.AddElement(lSubElement);
+
+   lExpected := '{"Element1":[1,{"SubElement1":["String1","String2"]}]}';
    lResult := TElement.ToJSON(lElement);
    checkvalue(lExpected,lResult);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_As_JSON_Returns_Value;
+var lElement: TElement;
+    lExpected, lResult : string;
+begin
+   lElement := 1;
+   lExpected := '1';
+   lResult := TElement.ToJSON(lElement);
+   checkvalue(lExpected,lResult);
+
+   lElement := 'This is a string';
+   lExpected := '"This is a string"';
+   lResult := TElement.ToJSON(lElement);
+   checkvalue(lExpected,lResult);
+
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_As_JSON_Returns_Value_Array;
+var lElement: TElement;
+    lExpected, lResult : string;
+begin
+   lElement.AddElement(1);
+   lElement.AddElement(2);
+   lElement.AddElement(3);
+
+   lExpected := '[1,2,3]';
+   lResult := TElement.ToJSON(lElement);
+   checkvalue(lExpected,lResult);
+
+   lElement.Clear;
+
+   lElement.AddElement('String 1');
+   lElement.AddElement('String 2');
+   lElement.AddElement('String 3');
+   lExpected := '["String 1","String 2","String 3"]';
+   lResult := TElement.ToJSON(lElement);
+   checkvalue(lExpected,lResult);
+
 end;
 
 initialization

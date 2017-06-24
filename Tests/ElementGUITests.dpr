@@ -17,12 +17,14 @@ program ElementGUITests;
 uses
   DUnitTestRunner,
   GenericElementTest in 'GenericElementTest.pas',
-  GenericElements in '..\GenericElements.pas';
+  GenericElements in '..\GenericElements.pas',
+  GenericTypedArrayPointer in 'GenericTypedArrayPointer.pas';
 
 {$R *.RES}
 
 
 begin
+  system.ReportMemoryLeaksOnShutdown := true;
   DUnitTestRunner.RunRegisteredTests;
 end.
 
