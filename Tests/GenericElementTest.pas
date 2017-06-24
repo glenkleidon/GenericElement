@@ -41,6 +41,13 @@ uses
     procedure Test_Generic_Element_As_JSON_Returns_Value;
     procedure Test_Generic_Element_As_JSON_Returns_Value_Array;
     procedure Test_Generic_Element_AS_JSON_Passes;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_String_Element;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_Boolean_Element;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_Integer_Element;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_Int64_Element;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_Single_Element;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_Double_Element;
+    procedure Test_Generic_Element_From_JSON_Converts_Back_To_Same_String;
   end;
 
 
@@ -131,7 +138,7 @@ begin
    CheckValue(3, lResult.Count);
    CheckValue(lElement.ElementType, lResult.ElementType);
    CheckValue(lElement.MethodCount, lResult.MethodCount);
-   for i := 0 to lElement.Count do
+   for i := 0 to lElement.Count-1 do
      CheckValue(lElement.Elements[i].value,lResult.Elements[i].value);
 
 end;
@@ -486,6 +493,105 @@ begin
    lResult := TElement.ToJSON(lElement);
    checkvalue(lExpected,lResult);
 
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Converts_Back_To_Same_String;
+var lElement: TElement;
+    lJSON, lJSONResult : string;
+    lExpected1 : Integer;
+    lExpected2 : Single;
+    lResult :  boolean;
+begin
+  lExpected1 := 275;
+  lJSON := lExpected1.ToString;
+  lElement := TElement.FromJSON(lJSON);
+  lJSONResult := TElement.ToJSON(lElement);
+  lResult := lJSONResult = lJSON;
+  checkvalue(True, lResult);
+
+  lExpected2 := 275.35;
+  lJSON := lExpected2.ToString;
+  lElement := TElement.FromJSON(lJSON);
+  lJSONResult := TElement.ToJSON(lElement);
+  lResult := lJSONResult = lJSON;
+  checkvalue(True, lResult);
+
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Boolean_Element;
+var lElement: TElement;
+    lResult: Boolean;
+    lJSON : string;
+begin
+  lJSON := 'False';
+  lElement := TElement.FromJSON(lJSON);
+  lResult := lElement.value.asBoolean;
+  CheckValue(false, lResult);
+
+  lElement.Clear;
+  lJSON := 'True';
+  lElement := TElement.FromJSON(lJSON);
+  lResult := lElement.value.asBoolean;
+  CheckValue(true, lResult);
+
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Double_Element;
+var lElement: TElement;
+    lJSON   : string;
+    lExpected : Double;
+begin
+  lJSON := '2.123456678';
+  lElement := TElement.FromJSON(lJSON);
+  lExpected := 2.123456678;
+  checkvalue(lExpected, lElement.value);
+end;
+
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Int64_Element;
+var lElement: TElement;
+    lJSON   : string;
+    lExpected : Int64;
+    lResult : Boolean;
+begin
+  lJSON := '2147483700';
+  lElement := TElement.FromJSON(lJSON);
+  lResult := lElement.AsInt64 = 2147483700;
+  checkvalue(true, lResult);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Integer_Element;
+var lElement: TElement;
+    lJSON   : string;
+    lExpected : Integer;
+begin
+  lJSON := '5';
+  lElement := TElement.FromJSON(lJSON);
+  lExpected := 5;
+  checkvalue(lExpected, lElement.value);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Single_Element;
+var lElement: TElement;
+    lJSON   : string;
+    lExpected : single;
+begin
+  lJSON := '2.3';
+  lElement := TElement.FromJSON(lJSON);
+  lExpected := 2.3;
+  checkvalue(lExpected, lElement.value);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_String_Element;
+var lElement: TElement;
+    lJSON, lExpected : string;
+begin
+  lJSON := '"ABC"';
+  lElement := TElement.FromJSON(lJSON);
+  lExpected := '';
+  checkvalue(lExpected, lElement.Name);
+  lExpected := 'ABC';
+  checkvalue(lExpected, lElement.value);
 end;
 
 initialization

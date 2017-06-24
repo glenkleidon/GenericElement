@@ -17,6 +17,8 @@ type
     function GetParent: TElement;
     procedure SetParent(const Value: TElement);
     function GetElement(AName: string): TElement;
+    function getAsPtr: PElement;
+    function GetIsEmpty: boolean;
    public
      fParent : PElement;
      Value : TElementValue;
@@ -27,6 +29,8 @@ type
      Procedure Clone(const AElementToClone: TElement);
      function Add : PElement;
      Function Clear: TElement;
+     Function ClearElements: TElement;
+     Function ClearMethods: TElement;
      Function AsByte:Byte;  // no implicit casting
      Function AsChar:Char;
      Function AsSingle: Single;
@@ -56,7 +60,8 @@ type
      Property Name : string read GetName write SetName;
      Property Parent : TElement read GetParent write SetParent;
      Property Element[AName: string] : TElement read GetElement;
-
+     Property AsPointer : PElement read GetAsPtr;
+     Property IsEmpty: boolean read GetIsEmpty;
    End;
 
    TElementMethod = Function(AElement: TElement): TElement;
@@ -170,9 +175,18 @@ begin
   setlength(Methods,0);
 end;
 
+function TElement.ClearElements: TElement;
+begin
+  setlength(Elements,0);
+end;
+
+function TElement.ClearMethods: TElement;
+begin
+  setlength(Methods,0);
+end;
+
 procedure TElement.Clone(const AElementToClone: TElement);
-Var lElement: TElement;
-    i,lMax:integer;
+Var i,lMax:integer;
 begin
   Self.Name := AElementToClone.Name;
   Self.Value := AElementToClone.Value;
@@ -205,9 +219,21 @@ begin
   Self.Value := AValue;
 end;
 
+function TElement.getAsPtr: PElement;
+begin
+  result := @self;
+end;
+
 function TElement.GetElement(AName: string): TElement;
 begin
 
+end;
+
+function TElement.GetIsEmpty: boolean;
+begin
+  result := (Value.IsEmpty) and
+            (Count=0) and
+            (MethodCount=0);
 end;
 
 function TElement.GetName: string;
@@ -317,7 +343,6 @@ end;
 
 procedure TElement.SetName(const Value: string);
 var lNum: single;
-    lValue: string;
 begin
   self.fName := Value;
   if TryStrToFloat(Value,lNum) then self.fName:='_'+Value;
@@ -342,7 +367,7 @@ class function TElementHelper.FromJSON(AJSON: TJSONString): TElement;
 Type TJSONState = (Nothing, InObject, InArray, InData, InQuote);
 const JSONCHARS = '":{}[]';
 var
-    P,Q,C : Integer;
+    P,Q,C,JLength : Integer;
     lElement : PTElement;
     JSONCharIndex: Integer;
     JState: TJSONState;
@@ -355,11 +380,13 @@ var
     begin
       // finds the next JSON Control Character
       Result := false;
+      if (P>JLength) then exit;
+
       if JState=TJSONState.InQuote then
       begin
         JSONCharIndex := 1;
         Q := posex('"',AJSON,P);
-        Result := True;
+        if Q>0 then Result := True;
         exit;
       end;
       llMin := MaxInt;
@@ -367,31 +394,89 @@ var
       for i := 1 to 6 do
       begin
         ch := JSONCHars[i];
-        llPos := posex('"',AJSON,P);
-        if llPOS<llMin then
+        llPos := posex(ch,AJSON,P);
+        if (llpos>0) and (llPOS<llMin) then
         begin
           llMin := llPos;
           JSONCharIndex := i;
+          if (llPos=P) then break;   // optomisation
         end;
       end;
       if JSONCharIndex>0 Then
       begin
-       q := llPOS;
+       Q := llPOS;
        Result := true;
       end;
     end;
 
     Procedure AddUnquotedText;
+    Var lList:TStringlist;
+        sol,s: String;
+        lp: integer;
+        lSingle: Single;
+        lDouble: Double;
+        lNumber: Extended;
     begin
      if Text.Length>0 then
      begin
        // if there is NON white space, then this is Ordinal or Number
        // data - need to add all separated by Commas to the current elements.
+       lList:=TStringlist.Create;
+       try
+         lList.Delimiter := ',';
+         lList.DelimitedText := Text;
+         for sol in lList do
+         begin
+           s := sol.Replace(' ','',[rfReplaceAll])
+                 .Replace(#13,'',[rfReplaceAll])
+                 .Replace(#10,'',[rfReplaceAll])
+                 .Replace(#9 ,'',[rfReplaceAll]);
+           if (s.ToLower='false') then
+              lElement.AddElement(false)
+           else if (s.ToLower='true') then
+              lElement.AddElement(true)
+           else
+           begin
+             lp :=pos('.',s);
+             if lp>0 then
+             begin
+               if TryStrToFloat(s,lDouble) then
+               begin
+                 if (s.Length-lp-1) > 6 then
+                   lElement.AddElement(lDouble)
+                 else
+                 begin
+                  if tryStrToFloat(s,lSingle) then
+                    lElement.AddElement(lSingle)
+                  else
+                    lElement.AddElement(lDouble);
+                 end;
+               end else
+               begin
+                 // JSON Error;
+               end;
+             end else if TryStrToFloat(s,lNumber) then
+             begin
+               if (lNumber<MaxInt) and (lNumber>-MaxInt) then
+               begin
+                  lElement.AddElement(StrToInt(s));
+               end else lElement.AddElement(lNumber);
+             end else
+             begin
+               //JSONError;
+             end;
+           end;
+         end;
+
+       finally
+         freeandnil(lList);
+       end;
      end
     end;
 
 begin
    P:=1;
+   JLength := AJSON.Length;
    lElement := Nil;
    lStack := TStack<TJSONState>.Create;
    try
@@ -400,14 +485,25 @@ begin
      begin
        c:= Q-P;
        Text := Copy(AJSON, P, C);
+       p := Q;
        JState := lStack.Peek;
        case JSONCharIndex of
          1 : // QUOTE - need to add a string to the current Element
              begin
                if (JState=InQuote) then
                begin
-                 JState := lStack.Pop;
+                 lStack.Pop;
+                 JState := lStack.Peek;
                  case Jstate of
+                   TJSONState.Nothing:
+                     Begin
+                       if lElement=nil then
+                       begin
+                         lElement := @Result;
+                         Result := JSONDecode(Text);
+                       end
+                       else lElement.AddElement(JSONDecode(Text));
+                     end;
                    TJSONState.InObject:
                      lElement.Name := JSONDecode(text);
                    TJSONState.InData:
@@ -429,9 +525,9 @@ begin
                      // Faulty JSON..
                    end;
                  end;
-                 lElement.AddElement(Text);
                end else
                begin
+                 JState := TJSONState.InQuote;
                  lStack.Push(TJSONState.InQuote);
                end;
              end;
@@ -466,7 +562,7 @@ begin
              begin
                // End of an Object
                lStack.Pop;
-               lElement := @lElement.Parent;
+               lElement := lElement.Parent.AsPointer;
              end;
          5 : // Left Square Bracket
              begin
@@ -482,10 +578,20 @@ begin
                // to the parent object
                AddUnquotedText;
                lStack.Pop;
-               lElement := @lElement.Parent;
+               lElement := lElement.Parent.AsPointer;
              end;
        end; // case
        inc(P);
+     end;
+     if P=1 then
+     begin
+       lElement := @Result;
+       Text := AJSON;
+       AddUnquotedText;
+       if Result.Count=1 then
+       begin
+         Result.value := Result.Elements[0].Value;
+       end else Result.Clear;
      end;
    finally
      Freeandnil(lStack);
@@ -500,13 +606,12 @@ class function TElementHelper.ToJSON(AElement: TElement; AIncludeMeta: boolean;
 var lSb : TStringBuilder;
     lEndchars, lSeparator : string;
     lElement : TElement;
-    lHasName, lHasElements: boolean;
+    lHasName: boolean;
 begin
   Result := '';
   if (not(AIncludeMeta) and AElement.isMetaData) then exit;
 
   lHasName :=  Trim(AElement.Name).length>0;
-  lHasElements := AElement.Count>0;
 
   if (AElement.ElementType.ToLower='boolean') or
      (AElement.Value.Kind in [tkInteger,tkFloat,tkInt64]) then
