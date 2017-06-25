@@ -519,13 +519,15 @@ var lElement: TElement;
 begin
   lExpected1 := 275;
   lJSON := lExpected1.ToString;
-  lElement := TElement.FromJSON(lJSON);
+  lElement.Clear;
+  TElement.FromJSON(lJSON,lElement);
   lJSONResult := TElement.ToJSON(lElement);
   checkValue(lJSON,lJSONResult);
 
   lExpected2 := 275.35;
   lJSON := lExpected2.ToString;
-  lElement := TElement.FromJSON(lJSON);
+  lElement.Clear;
+  TElement.FromJSON(lJSON,lElement);
   lJSONResult := TElement.ToJSON(lElement);
   checkValue(lJSON, lJSONResult);
 
@@ -538,7 +540,7 @@ var lElement, lElement1: TElement;
     i: integer;
 begin
   lJSON := '[1,2,3]';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement );
   checkIsTrue( lElement.Count=3);
   for i := 0 to lElement.Count-1 do
   begin
@@ -560,7 +562,7 @@ begin
   lExpectedSingle := 2.3;  // rounding
 
   lJSON := Format('["Test1","Test2",1,%s]',[lExpectedSingle.ToString]);
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   checkisTrue(lElement.Count=4);
 
   lExpected := 'Test1';
@@ -593,6 +595,7 @@ var lElement: TElement;
     lExpectedValue : String;
     lExpectedInt,
     lIntResult       :integer;
+
 begin
   lJSON := '{"Test":[{"Fred":3},{"John":"Test1"}]}';
 
@@ -603,7 +606,8 @@ begin
   lExpectedInt := 3;
   lExpectedValue := 'Test1';
 
-  lElement := TElement.FromJSON(lJSON);
+  lElement.Elements := TPersistentElement.Create.Elements;
+  TElement.FromJSON(lJSON,lElement);
 
   checkIstrue(lElement.Count=2);
 
@@ -638,13 +642,14 @@ var lElement: TElement;
     lJSON : string;
 begin
   lJSON := 'False';
-  lElement := TElement.FromJSON(lJSON);
+  lElement.Clear;
+  TElement.FromJSON(lJSON,lElement);
   lResult := lElement.value.asBoolean;
   checkIsTrue(Not lResult);
 
   lElement.Clear;
   lJSON := 'True';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   lResult := lElement.value.asBoolean;
   checkIsTrue( lResult);
 
@@ -656,7 +661,7 @@ var lElement: TElement;
     lExpected : Double;
 begin
   lJSON := '2.123456678';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   lExpected := 2.123456678;
   checkvalue(lExpected, lElement.value);
 end;
@@ -668,7 +673,7 @@ var lElement: TElement;
     lResult : Boolean;
 begin
   lJSON := '2147483700';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   lResult := lElement.AsInt64 = 2147483700;
   checkIsTrue(lResult);
 end;
@@ -679,7 +684,7 @@ var lElement: TElement;
     lExpected : Integer;
 begin
   lJSON := '5';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   lExpected := 5;
   checkvalue(lExpected, lElement.value);
 end;
@@ -692,7 +697,7 @@ var lElement: TElement;
     lResult    :integer;
 begin
   lJSON := '{"Fred":3}';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
 
   lExpectedName := 'Fred';
   lExpectedValue := 3;
@@ -707,7 +712,7 @@ var lElement: TElement;
     lExpected : single;
 begin
   lJSON := '2.3';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   lExpected := 2.3;
   checkvalue(lExpected, lElement.value);
 end;
@@ -717,7 +722,7 @@ var lElement: TElement;
     lJSON, lExpected : string;
 begin
   lJSON := '"ABC"';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON, lElement);
   lExpected := '';
   checkvalue(lExpected, lElement.Name);
   lExpected := 'ABC';
@@ -732,7 +737,7 @@ var lElement, lElement1: TElement;
     i: integer;
 begin
   lJSON := '["Test1"]';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   checkisTrue(lElement.Count=1);
 
   lExpected := 'Test1';
@@ -742,7 +747,7 @@ begin
 
   lElement.Clear;
   lJSON := '["Test1","Test2"]';
-  lElement := TElement.FromJSON(lJSON);
+  TElement.FromJSON(lJSON,lElement);
   checkValue(true,lElement.Count=2);
   for i := 0 to lElement.Count-1 do
   begin

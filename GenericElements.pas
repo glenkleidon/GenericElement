@@ -1,11 +1,13 @@
 unit GenericElements;
 
 interface
-uses System.Classes, System.SysUtils, System.Generics.Collections, System.Rtti, System.TypInfo;
+uses System.Classes, System.SysUtils, System.Generics.Collections,
+     System.SyncObjs, System.Rtti, System.TypInfo;
 
 type
    TJSONString = String;
    PElement = Pointer;
+   PElementArray = Pointer;
    TElementValue = TValue;
 
    TElement = Record
@@ -20,10 +22,13 @@ type
     function GetIsEmpty: boolean;
     function GetHasParent: boolean;
     procedure SetParent(const Value: PElement);
+    function GetElements: TArray<TElement>;
+    procedure SetElements(const Value: TArray<TElement>);
    public
+     fElements: TArray<TElement>;
+     fPersistentElements: PElementArray;
      Value : TElementValue;
      ElementType: string;
-     Elements: TArray<TElement>;
      Methods : TArray<TFunc<TElement,TElement>>;
      IsMetaData: boolean;
      IsObject : boolean;
@@ -31,6 +36,7 @@ type
      Procedure Clone(const AElementToClone: TElement);
      function Add : PElement;
      Function Clear: TElement;
+     Function ClearProperties: TElement;
      Function ClearElements: TElement;
      Function ClearMethods: TElement;
      Function AsByte:Byte;  // no implicit casting
@@ -46,6 +52,7 @@ type
      Function MetadataCount: integer;
      Function AddElement(AElement: TElement):PElement;
      Function AddSubElement(AElement: TElement):PElement;
+     Procedure Release;
      Class Operator Implicit(AChar : char): TElement;
      Class Operator Implicit(AByte : byte): TElement;
      Class Operator Implicit(AString: string): TElement;
@@ -64,6 +71,21 @@ type
      Property Element[AName: string] : TElement read GetElement;
      Property IsEmpty: boolean read GetIsEmpty;
      Property HasParent: boolean read GetHasParent;
+     Property Elements : TArray<TElement> read GetElements write SetElements;
+   End;
+
+   Type IPersistentElement = Interface
+    function GetElements: TArray<TElement>;
+    procedure SetElements(const Value: TArray<TElement>);
+    Property Elements : TArray<TElement> read GetElements write SetElements;
+   End;
+
+   Type TPersistentElement = Class(TInterfacedObject, IPersistentElement)
+    private
+     function GetElements: TArray<TElement>;
+     procedure SetElements(const Value: TArray<TElement>);
+    public
+     Property Elements : TArray<TElement> read GetElements write SetElements;
    End;
 
    TElementMethod = Function(AElement: TElement): TElement;
@@ -72,18 +94,22 @@ type
    TJsonEncodingOptions = (Default, AsArray, AsObjects,
                               ArrayOfObjecs, ObjectsWithArrays);
 
-   TElementHelper = Record Helper for TElement
+   TElementHelper = record Helper for TElement
      Class Function ElementParent(AElement: TElement): PTElement; overload;  static;
      Class Function ElementParent(APElement: PElement): PTElement; overload; static;
-     Class Function FromJSON(AJSON: TJSONString): TElement; static;
+     Class Function FromJSON(AJSON: TJSONString; var AElement: TElement): Boolean; static;
      Class Function ToJSON(AElement: TElement; AIncludeMeta: boolean=false; AEncodingOptions: TJsonEncodingOptions=Default): TJSONString; static;
    End;
+
+
+
+
 
 Function JSONEncode(ATExt: String):String;
 Function JSONDecode(AText: String):String;
 
 implementation
-   uses System.strUtils, Windows;
+   uses System.strUtils;
 { TElement }
 Function JSONEncode(AText: String):String;
 begin
@@ -97,12 +123,25 @@ end;
 
 function TElement.Add: PElement;
 var l: integer;
+    lElements: ^TArray<TElement>;
 begin
-   l:= length(Self.Elements);
-   setlength(Self.Elements, l+1);
-   Self.Elements[l].Clear;
-   self.Elements[l].fParent := @Self;
-   Result := @self.Elements[l];
+  if self.fPersistentElements=nil then
+  begin
+    l:= length(fElements);
+    setlength(fElements, l+1);
+    fElements[l].Clear;
+    fElements[l].fParent := @Self;
+    Result := @fElements[l];
+  end else
+  begin
+    lElements := fPersistentElements;
+    l:= length(lElements^);
+    setlength(lElements^, l+1);
+    lElements^[l].Clear;
+    lElements^[l].fParent := @Self;
+    Result := @(lElements^[l]);
+  end;
+
 end;
 
 Function TElement.AddElement(AElement: TElement):PElement;
@@ -171,6 +210,25 @@ end;
 
 function TElement.Clear: TElement;
 begin
+  fPersistentElements := nil;
+  ClearProperties;
+end;
+
+function TElement.ClearElements: TElement;
+var lElements: ^TArray<TElement>;
+begin
+  if self.fPersistentElements=nil then lElements := @fElements
+     else lELements := fPersistentElements;
+  setlength(lElements^,0);
+end;
+
+function TElement.ClearMethods: TElement;
+begin
+  setlength(Methods,0);
+end;
+
+function TElement.ClearProperties: TElement;
+begin
   fName := '';
   ElementType := '';
   fParent := nil;
@@ -180,21 +238,15 @@ begin
   ContainsObjects := False;
   ClearElements;
   ClearMethods;
-end;
-
-function TElement.ClearElements: TElement;
-begin
-  setlength(Elements,0);
-end;
-
-function TElement.ClearMethods: TElement;
-begin
-  setlength(Methods,0);
+  Result := self;
 end;
 
 procedure TElement.Clone(const AElementToClone: TElement);
 Var i,lMax:integer;
+    lElements: ^TArray<TElement>;
 begin
+  if self.fPersistentElements=nil then lElements := @fElements
+     else lELements := fPersistentElements;
   Self.Name := AElementToClone.Name;
   Self.Value := AElementToClone.Value;
   Self.IsMetaData := AElementToClone.IsMetaData;
@@ -203,10 +255,10 @@ begin
   self.ElementType := AElementToClone.ElementType;
 
 // Elements
-  SetLength(Self.Elements,AElementToClone.Count);
+  SetLength(lElements^,AElementToClone.Count);
   lMax := Self.Count-1;
   for i := 0 to lMax do
-     Self.Elements[i].Clone(AElementToClone.Elements[i]);
+     lElements^[i].Clone(AElementToClone.Elements[i]);
 
   SetLength(Self.Methods,AElementToClone.MethodCount);
   lMax := Self.MethodCount-1;
@@ -230,6 +282,13 @@ end;
 function TElement.GetElement(AName: string): TElement;
 begin
 
+end;
+
+function TElement.GetElements: TArray<TElement>;
+begin
+  if self.fPersistentElements=nil then
+     Result := fElements
+  else Result := TArray<TElement>(fPersistentElements^);
 end;
 
 function TElement.GetHasParent: boolean;
@@ -319,6 +378,11 @@ begin
   result := length(Self.Methods);
 end;
 
+procedure TElement.Release;
+begin
+   ///
+end;
+
 class operator TElement.Implicit(AChar: char): TElement;
 begin
   result.Name := '';
@@ -345,6 +409,11 @@ begin
   Result.Name := '';
   Result.Value := ASingle;
   Result.SetType;
+end;
+
+procedure TElement.SetElements(const Value: TArray<TElement>);
+begin
+   self.fPersistentElements := @Value;
 end;
 
 procedure TElement.SetName(const Value: string);
@@ -382,7 +451,7 @@ begin
 end;
 
 
-class function TElementHelper.FromJSON(AJSON: TJSONString): TElement;
+class function TElementHelper.FromJSON(AJSON: TJSONString; var AElement: TElement): Boolean;
 Type TJSONState = (Nothing, InObject, InArray, InData, InQuote);
 const JSONCHARS = '":{}[]';
 var
@@ -508,7 +577,7 @@ var
         lElement := lElement.Parent;
     end;
 begin
-   Result.Clear;
+   AElement.ClearProperties;
    P:=1;
    JLength := AJSON.Length;
    lElement := Nil;
@@ -519,7 +588,7 @@ begin
      begin
        c:= Q-P;
        Text := Copy(AJSON, P, C);
-       p := Q;
+       P := Q;
        JState := lStack.Peek;
        case JSONCharIndex of
          1 : // QUOTE - need to add a string to the current Element
@@ -533,8 +602,8 @@ begin
                      Begin
                        if lElement=nil then
                        begin
-                         lElement := @Result;
-                         Result := JSONDecode(Text);
+                         lElement := @AElement;
+                         AElement := JSONDecode(Text);
                        end
                        else lElement.AddElement(JSONDecode(Text));
                      end;
@@ -649,11 +718,11 @@ begin
        lElement := @Result;
        Text := AJSON;
        AddUnquotedText;
-       if Result.Count=1 then
+       if AElement.Count=1 then
        begin
-         Result.value := Result.Elements[0].Value;
-         Result.clearElements;
-       end else Result.Clear;
+         AElement.value := AElement.Elements[0].Value;
+         AElement.clearElements;
+       end else AElement.Clear;
      end;
    finally
      Freeandnil(lStack);
@@ -728,6 +797,19 @@ begin
   finally
     freeandnil(lSb);
   end;
+
+end;
+
+
+{ TPersistentElement }
+
+function TPersistentElement.GetElements: TArray<TElement>;
+begin
+
+end;
+
+procedure TPersistentElement.SetElements(const Value: TArray<TElement>);
+begin
 
 end;
 
