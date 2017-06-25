@@ -36,6 +36,7 @@ uses
   TestGenericElementJson = class(TTestCase)
   private
     Procedure CheckValue(AExpected, AActual:  TValue);
+    procedure CheckIsTrue(AResult: Boolean);
   public
   published
     procedure Test_Generic_Element_As_JSON_Returns_Value;
@@ -47,7 +48,12 @@ uses
     procedure Test_Generic_Element_From_JSON_Returns_Single_Int64_Element;
     procedure Test_Generic_Element_From_JSON_Returns_Single_Single_Element;
     procedure Test_Generic_Element_From_JSON_Returns_Single_Double_Element;
-    procedure Test_Generic_Element_From_JSON_Converts_Back_To_Same_String;
+    procedure Test_Generic_Element_From_JSON_Single_Converts_Back_To_Same_String;
+    procedure Test_Generic_Element_From_JSON_Returns_Integer_Arrays;
+    procedure Test_Generic_Element_From_JSON_Returns_String_Arrays;
+    procedure Test_Generic_Element_From_JSON_Returns_Mixed_Arrays;
+    procedure Test_Generic_Element_From_JSON_Returns_Single_Object;
+    procedure Test_Generic_Element_From_JSON_Returns_Multiple_Objects;
   end;
 
 
@@ -419,13 +425,13 @@ end;
 
 procedure TestGenericElement.Test_Generic_Element_Parent_Is_Expected_Parent;
 var lExpected : TElement;
-    lResult : TElement;
+    lResult : PTElement;
 
 begin
    lExpected := 0.01;
    lExpected.Name := 'Parent1';
 
-   lResult := PTElement(lExpected.addSubElement('Object1')).Parent;
+   lResult := TElement.ElementParent(lExpected.addSubElement('Object1'));
    checkValue(lExpected.Value, lResult.Value);
    checkValue(lExpected.Name,  lResult.Name);
 
@@ -437,6 +443,16 @@ procedure TestGenericElementJson.CheckValue(AExpected, AActual: TValue);
 begin
   checkTestValue(Self, AExpected, AActual);
 end;
+
+procedure TestGenericElementJson.CheckIsTrue(AResult: Boolean);
+begin
+  {$IFNDEF DUNITX}
+    check(AResult, 'Expected to be TRUE, but was False');
+  {$ELSE}
+    Assert.IsTrue(AResult);
+  {$ENDIF}
+end;
+
 
 procedure TestGenericElementJson.Test_Generic_Element_AS_JSON_Passes;
 var lElement,lSubElement: TElement;
@@ -495,26 +511,124 @@ begin
 
 end;
 
-procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Converts_Back_To_Same_String;
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Single_Converts_Back_To_Same_String;
 var lElement: TElement;
     lJSON, lJSONResult : string;
     lExpected1 : Integer;
     lExpected2 : Single;
-    lResult :  boolean;
 begin
   lExpected1 := 275;
   lJSON := lExpected1.ToString;
   lElement := TElement.FromJSON(lJSON);
   lJSONResult := TElement.ToJSON(lElement);
-  lResult := lJSONResult = lJSON;
-  checkvalue(True, lResult);
+  checkValue(lJSON,lJSONResult);
 
   lExpected2 := 275.35;
   lJSON := lExpected2.ToString;
   lElement := TElement.FromJSON(lJSON);
   lJSONResult := TElement.ToJSON(lElement);
-  lResult := lJSONResult = lJSON;
-  checkvalue(True, lResult);
+  checkValue(lJSON, lJSONResult);
+
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Integer_Arrays;
+var lElement, lElement1: TElement;
+    lJSON : string;
+    lResult : Boolean;
+    i: integer;
+begin
+  lJSON := '[1,2,3]';
+  lElement := TElement.FromJSON(lJSON);
+  checkIsTrue( lElement.Count=3);
+  for i := 0 to lElement.Count-1 do
+  begin
+    lElement1 := lElement.Elements[i];
+    lResult := lElement1.value.asInteger=i+1;
+    CheckIsTrue(lResult);
+  end;
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Mixed_Arrays;
+var lElement, lElement1: TElement;
+    lJSON : string;
+    lResult : Boolean;
+    lExpected : string;
+    lExpectedInt: integer;
+    lExpectedSingle: Single;
+begin
+  lExpectedInt := 1;
+  lExpectedSingle := 2.3;  // rounding
+
+  lJSON := Format('["Test1","Test2",1,%s]',[lExpectedSingle.ToString]);
+  lElement := TElement.FromJSON(lJSON);
+  checkisTrue(lElement.Count=4);
+
+  lExpected := 'Test1';
+  lElement1 := lElement.Elements[0];
+  lResult := lExpected=lElement1;
+  CheckisTrue(lResult);
+
+  lExpected := 'Test2';
+  lElement1 := lElement.Elements[1];
+  lResult := lExpected=lElement1;
+  CheckisTrue(lResult);
+
+  lElement1 := lElement.Elements[2];
+  lResult := lExpectedInt = lElement1.AsInteger;
+  CheckisTrue(lResult);
+
+  lElement1 := lElement.Elements[3];
+  lResult := lExpectedSingle = lElement1.AsSingle;
+  CheckisTrue(lResult);
+
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Multiple_Objects;
+var lElement: TElement;
+    lJSON,
+    lResult,
+    lExpectedName,
+    lExpectedName0,
+    lExpectedName1,
+    lExpectedValue : String;
+    lExpectedInt,
+    lIntResult       :integer;
+begin
+  lJSON := '{"Test":[{"Fred":3},{"John":"Test1"}]}';
+
+  lExpectedName := 'Test';
+  lExpectedName0 := 'Fred';
+  lExpectedName1 := 'John';
+
+  lExpectedInt := 3;
+  lExpectedValue := 'Test1';
+
+  lElement := TElement.FromJSON(lJSON);
+
+  checkIstrue(lElement.Count=2);
+
+  CheckIsTrue(lELement.Value.IsEmpty);
+  CheckIsTrue(lELement.Elements[0].Value.IsEmpty);
+  CheckIsTrue(lELement.Elements[1].Value.IsEmpty);
+
+  CheckIsTrue(lELement.Value.IsObject);
+  CheckIsTrue(lELement.Elements[0].isObject);
+  CheckIsTrue(lELement.Elements[1].isObject);
+
+  CheckIsTrue(not lELement.ContainsObjects);
+  checkIsTrue(lElement.Elements[0].ContainsObjects);
+  checkIsTrue(lElement.Elements[1].ContainsObjects);
+
+  checkValue(lExpectedName, lElement.Name);
+  checkValue(lExpectedName0, lElement.Elements[0].Name);
+  checkValue(lExpectedName1, lElement.Elements[1].Name);
+
+  lIntResult := lElement.Elements[0].AsInteger;
+  lResult := lElement.Elements[1];
+
+  CheckIsTrue(lElement.Value.IsEmpty);
+  checkValue(lExpectedInt, lIntResult);
+  checkValue(lExpectedValue, lResult);
 
 end;
 
@@ -526,13 +640,13 @@ begin
   lJSON := 'False';
   lElement := TElement.FromJSON(lJSON);
   lResult := lElement.value.asBoolean;
-  CheckValue(false, lResult);
+  checkIsTrue(Not lResult);
 
   lElement.Clear;
   lJSON := 'True';
   lElement := TElement.FromJSON(lJSON);
   lResult := lElement.value.asBoolean;
-  CheckValue(true, lResult);
+  checkIsTrue( lResult);
 
 end;
 
@@ -551,13 +665,12 @@ end;
 procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Int64_Element;
 var lElement: TElement;
     lJSON   : string;
-    lExpected : Int64;
     lResult : Boolean;
 begin
   lJSON := '2147483700';
   lElement := TElement.FromJSON(lJSON);
   lResult := lElement.AsInt64 = 2147483700;
-  checkvalue(true, lResult);
+  checkIsTrue(lResult);
 end;
 
 procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Integer_Element;
@@ -569,6 +682,23 @@ begin
   lElement := TElement.FromJSON(lJSON);
   lExpected := 5;
   checkvalue(lExpected, lElement.value);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Object;
+var lElement: TElement;
+    lJSON   : string;
+    lExpectedName : String;
+    lExpectedValue,
+    lResult    :integer;
+begin
+  lJSON := '{"Fred":3}';
+  lElement := TElement.FromJSON(lJSON);
+
+  lExpectedName := 'Fred';
+  lExpectedValue := 3;
+  checkvalue(lExpectedName, lElement.Name);
+  lResult := lElement.Value.AsInteger;
+  CheckValue(lExpectedValue,lResult);
 end;
 
 procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_Single_Single_Element;
@@ -592,6 +722,36 @@ begin
   checkvalue(lExpected, lElement.Name);
   lExpected := 'ABC';
   checkvalue(lExpected, lElement.value);
+end;
+
+procedure TestGenericElementJson.Test_Generic_Element_From_JSON_Returns_String_Arrays;
+var lElement, lElement1: TElement;
+    lJSON : string;
+    lResult : Boolean;
+    lExpected : string;
+    i: integer;
+begin
+  lJSON := '["Test1"]';
+  lElement := TElement.FromJSON(lJSON);
+  checkisTrue(lElement.Count=1);
+
+  lExpected := 'Test1';
+  lElement1 := lElement.Elements[0];
+  lResult := lExpected=lElement1;
+  CheckIsTrue(lResult);
+
+  lElement.Clear;
+  lJSON := '["Test1","Test2"]';
+  lElement := TElement.FromJSON(lJSON);
+  checkValue(true,lElement.Count=2);
+  for i := 0 to lElement.Count-1 do
+  begin
+    lElement1 := lElement.Elements[i];
+    lResult := 'Test'+(i+1).toString=lElement1;
+    CheckisTrue(lResult);
+  end;
+
+
 end;
 
 initialization

@@ -4,28 +4,30 @@ interface
 uses System.Classes, System.SysUtils, System.Generics.Collections, System.Rtti, System.TypInfo;
 
 type
-   TElementValue = TValue;
    TJSONString = String;
    PElement = Pointer;
+   TElementValue = TValue;
 
    TElement = Record
    private
     fName: string;
+    fParent : PElement;
     procedure SetType;
     function GetName: string;
     procedure SetName(const Value: string);
-    function GetParent: TElement;
-    procedure SetParent(const Value: TElement);
+    function GetParent: PElement;
     function GetElement(AName: string): TElement;
-    function getAsPtr: PElement;
     function GetIsEmpty: boolean;
+    function GetHasParent: boolean;
+    procedure SetParent(const Value: PElement);
    public
-     fParent : PElement;
      Value : TElementValue;
      ElementType: string;
      Elements: TArray<TElement>;
      Methods : TArray<TFunc<TElement,TElement>>;
      IsMetaData: boolean;
+     IsObject : boolean;
+     ContainsObjects: boolean;
      Procedure Clone(const AElementToClone: TElement);
      function Add : PElement;
      Function Clear: TElement;
@@ -58,10 +60,10 @@ type
      Class Operator Implicit(AElement: TElement): string;
      Constructor Create(AName: string; const AValue: TValue); overload;
      Property Name : string read GetName write SetName;
-     Property Parent : TElement read GetParent write SetParent;
+     Property Parent : PElement read GetParent write SetParent;
      Property Element[AName: string] : TElement read GetElement;
-     Property AsPointer : PElement read GetAsPtr;
      Property IsEmpty: boolean read GetIsEmpty;
+     Property HasParent: boolean read GetHasParent;
    End;
 
    TElementMethod = Function(AElement: TElement): TElement;
@@ -71,6 +73,8 @@ type
                               ArrayOfObjecs, ObjectsWithArrays);
 
    TElementHelper = Record Helper for TElement
+     Class Function ElementParent(AElement: TElement): PTElement; overload;  static;
+     Class Function ElementParent(APElement: PElement): PTElement; overload; static;
      Class Function FromJSON(AJSON: TJSONString): TElement; static;
      Class Function ToJSON(AElement: TElement; AIncludeMeta: boolean=false; AEncodingOptions: TJsonEncodingOptions=Default): TJSONString; static;
    End;
@@ -79,7 +83,7 @@ Function JSONEncode(ATExt: String):String;
 Function JSONDecode(AText: String):String;
 
 implementation
-   uses System.strUtils;
+   uses System.strUtils, Windows;
 { TElement }
 Function JSONEncode(AText: String):String;
 begin
@@ -96,6 +100,7 @@ var l: integer;
 begin
    l:= length(Self.Elements);
    setlength(Self.Elements, l+1);
+   Self.Elements[l].Clear;
    self.Elements[l].fParent := @Self;
    Result := @self.Elements[l];
 end;
@@ -171,8 +176,10 @@ begin
   fParent := nil;
   Value := nil;
   IsMetaData := false;
-  setlength(Elements,0);
-  setlength(Methods,0);
+  IsObject := false;
+  ContainsObjects := False;
+  ClearElements;
+  ClearMethods;
 end;
 
 function TElement.ClearElements: TElement;
@@ -191,6 +198,8 @@ begin
   Self.Name := AElementToClone.Name;
   Self.Value := AElementToClone.Value;
   Self.IsMetaData := AElementToClone.IsMetaData;
+  Self.IsObject := AElementToClone.IsObject;
+  Self.ContainsObjects := AElementToClone.ContainsObjects;
   self.ElementType := AElementToClone.ElementType;
 
 // Elements
@@ -204,8 +213,6 @@ begin
   for i := 0 to lMax do
      Self.Methods[i] := AElementToClone.Methods[i];
 
-
-
 end;
 
 function TElement.Count: integer;
@@ -215,18 +222,19 @@ end;
 
 constructor TElement.Create(AName: string; const AValue: TValue);
 begin
+  Self.Clear;
   Self.Name := AName;
   Self.Value := AValue;
-end;
-
-function TElement.getAsPtr: PElement;
-begin
-  result := @self;
 end;
 
 function TElement.GetElement(AName: string): TElement;
 begin
 
+end;
+
+function TElement.GetHasParent: boolean;
+begin
+  result := self.fParent<>nil;
 end;
 
 function TElement.GetIsEmpty: boolean;
@@ -241,11 +249,9 @@ begin
   Result := Self.fName;
 end;
 
-function TElement.GetParent: TElement;
-var lParent: ^TElement;
+function TElement.GetParent: PElement;
 begin
-   lParent := fParent;
-   result := lParent^;
+   Result := fParent;
 end;
 
 class operator TElement.Implicit(ABoolean: Boolean): TElement;
@@ -348,9 +354,9 @@ begin
   if TryStrToFloat(Value,lNum) then self.fName:='_'+Value;
 end;
 
-procedure TElement.SetParent(const Value: TElement);
+procedure TElement.SetParent(const Value: PElement);
 begin
-   self.fParent := @Value;
+   self.fParent := Value;
 end;
 
 procedure TElement.SetType;
@@ -363,12 +369,25 @@ end;
 { TElementHelper }
 
 
+class function TElementHelper.ElementParent(AElement: TElement): PTElement;
+begin
+   Result := AElement.Parent;
+end;
+
+class function TElementHelper.ElementParent(APElement: PElement): PTElement;
+begin
+  Result := nil;
+  if (APelement<>nil) then
+    Result := PTElement(APElement).Parent; // which Might still be nil;
+end;
+
+
 class function TElementHelper.FromJSON(AJSON: TJSONString): TElement;
 Type TJSONState = (Nothing, InObject, InArray, InData, InQuote);
 const JSONCHARS = '":{}[]';
 var
     P,Q,C,JLength : Integer;
-    lElement : PTElement;
+    lElement, lParentElement : PTElement;
     JSONCharIndex: Integer;
     JState: TJSONState;
     Text: string;
@@ -404,7 +423,7 @@ var
       end;
       if JSONCharIndex>0 Then
       begin
-       Q := llPOS;
+       Q := llMin;
        Result := true;
       end;
     end;
@@ -415,7 +434,7 @@ var
         lp: integer;
         lSingle: Single;
         lDouble: Double;
-        lNumber: Extended;
+        lNumber: Int64;
     begin
      if Text.Length>0 then
      begin
@@ -425,6 +444,8 @@ var
        try
          lList.Delimiter := ',';
          lList.DelimitedText := Text;
+         // remove empty First element (mixed type cases)
+         if (lList.Count>0) and (lList[0]='') then lList.Delete(0);
          for sol in lList do
          begin
            s := sol.Replace(' ','',[rfReplaceAll])
@@ -455,7 +476,7 @@ var
                begin
                  // JSON Error;
                end;
-             end else if TryStrToFloat(s,lNumber) then
+             end else if TryStrToInt64(s,lNumber) then
              begin
                if (lNumber<MaxInt) and (lNumber>-MaxInt) then
                begin
@@ -473,8 +494,21 @@ var
        end;
      end
     end;
+    procedure lElementAsResult;
+    begin
+      if (lElement=nil) then lElement := @Result;
+    end;
 
+    procedure lElementAsParent;
+    begin
+      if lElement=nil then exit;
+      if (not lElement.hasParent) then
+        lElement := nil
+      else
+        lElement := lElement.Parent;
+    end;
 begin
+   Result.Clear;
    P:=1;
    JLength := AJSON.Length;
    lElement := Nil;
@@ -519,7 +553,10 @@ begin
                        end;
                      end;
                    TJSONState.InArray:
-                      lElement.AddElement(JSONDecode(Text));
+                     begin
+                       lElementAsResult; // remember quotes might be empty
+                       lElement.AddElement(JSONDecode(Text));
+                     end;
                  else
                    Begin
                      // Faulty JSON..
@@ -543,32 +580,55 @@ begin
          3 : // Left Brace
              begin
                // Starting New Object
-               if not (Jstate in [Nothing, InData, InArray]) then
+               if NOT(Jstate in [InData,Nothing,InArray]) then
                begin
-                 // JSON Error
-               end else if text.Length>0 then
-               begin
-                  // check for Data - probably OK to ignore it though
+                 // JSON error
                end else
                begin
                  if lElement=nil then
                     lElement := @Result
                  else
                     lElement := lElement.Add;
-                 lStack.Push(TJSONState.InObject);
+                 lELement.IsObject := true;
+                 if JState=InData then lElement.ContainsObjects := true;
                end;
+               lStack.Push(TJSONState.InObject);
              end;
          4 : // Right Brace
              begin
                // End of an Object
+               if Jstate=InData then
+               begin
+                 if lElement=nil then
+                 begin
+                   //JSON Error
+                 end
+                 else
+                 begin
+                   AddUnquotedText;
+                   if lElement.Count<>1 then
+                   begin
+                     //JSON error
+                   end
+                   else
+                   begin
+                     lElement.Value := lElement.Elements[0].value;
+                     lElement.ClearElements;
+                   end;
+                   lStack.Pop;
+                 end;
+               end;
                lStack.Pop;
-               lElement := lElement.Parent.AsPointer;
+               lElementAsParent;
              end;
          5 : // Left Square Bracket
              begin
                // Starting a new Array
                // Indicates that we need to use the Elements to Add new data
-               AddUnquotedText;
+               if (Text.length>0) then
+               begin
+                  // JSON Error
+               end;
                lStack.Push(TJSONState.InArray);
              end;
          6 : // Right Square Bracket
@@ -576,9 +636,10 @@ begin
                // Ending an Array
                // Indicates we need to stop using this Element, and return
                // to the parent object
+               lElementAsResult;
                AddUnquotedText;
                lStack.Pop;
-               lElement := lElement.Parent.AsPointer;
+               lElementAsParent;
              end;
        end; // case
        inc(P);
@@ -591,6 +652,7 @@ begin
        if Result.Count=1 then
        begin
          Result.value := Result.Elements[0].Value;
+         Result.clearElements;
        end else Result.Clear;
      end;
    finally
