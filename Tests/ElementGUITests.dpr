@@ -18,7 +18,8 @@ uses
   DUnitTestRunner,
   GenericElementTest in 'GenericElementTest.pas',
   GenericElements in '..\GenericElements.pas',
-  GenericTypedArrayPointer in 'GenericTypedArrayPointer.pas';
+  GenericTypedArrayPointer in 'GenericTypedArrayPointer.pas',
+  PersistentRecord in 'PersistentRecord.pas';
 
 {$R *.RES}
 
